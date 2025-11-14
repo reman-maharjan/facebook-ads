@@ -100,6 +100,45 @@ export async function updateAdSetStatus(id: string, status: "ACTIVE" | "PAUSED")
 }
 
 /**
+ * List ads (entire account)
+ */
+export async function getAds(fields: string = "id,name,status,adset_id,campaign_id") {
+  const url = `/api/facebook/ads?fields=${encodeURIComponent(fields)}&limit=50`
+  const res = await fetch(url, { method: "GET", cache: "no-store" })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Get ads failed: ${res.status} ${text}`)
+  }
+  return (await res.json()) as ApiResponse
+}
+
+/**
+ * List ads by campaign
+ */
+export async function getAdsByCampaign(campaignId: string, fields: string = "id,name,status,adset_id,campaign_id") {
+  const url = `/api/facebook/ads?campaignId=${encodeURIComponent(campaignId)}&fields=${encodeURIComponent(fields)}&limit=50`
+  const res = await fetch(url, { method: "GET", cache: "no-store" })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Get ads by campaign failed: ${res.status} ${text}`)
+  }
+  return (await res.json()) as ApiResponse
+}
+
+/**
+ * List ads by ad set
+ */
+export async function getAdsByAdSet(adsetId: string, fields: string = "id,name,status,adset_id,campaign_id") {
+  const url = `/api/facebook/ads?adsetId=${encodeURIComponent(adsetId)}&fields=${encodeURIComponent(fields)}&limit=50`
+  const res = await fetch(url, { method: "GET", cache: "no-store" })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Get ads by ad set failed: ${res.status} ${text}`)
+  }
+  return (await res.json()) as ApiResponse
+}
+
+/**
  * Create a new campaign in your ad account
  */
 export async function createCampaign(name: string) {

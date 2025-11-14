@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/src/components/ui/card"
-import { getAdSets, getCampaigns, updateAdSetStatus, updateCampaignStatus } from "@/src/utils/facebookAds"
+import { getAdSets, getCampaigns, getAds, updateAdSetStatus, updateCampaignStatus } from "@/src/utils/facebookAds"
 import Link from "next/link"
 
 interface CampaignRow {
@@ -18,12 +18,23 @@ interface AdSetRow {
   campaign_id: string
 }
 
+interface AdRow {
+  id: string
+  name: string
+  status?: string
+  campaign_id: string
+  adset_id: string
+}
+
 export default function CampaignsAdSetsTable() {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([])
   const [adsets, setAdsets] = useState<AdSetRow[]>([])
+  const [ads, setAds] = useState<AdRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>("")
-  const [view, setView] = useState<"campaigns" | "adsets">("campaigns")
+  const [view, setView] = useState<"campaigns" | "adsets" | "ads">("campaigns")
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("")
+  const [selectedAdSetId, setSelectedAdSetId] = useState<string>("")
 
   useEffect(() => {
     let mounted = true
@@ -33,13 +44,16 @@ export default function CampaignsAdSetsTable() {
     Promise.all([
       getCampaigns("id,name,status,objective"),
       getAdSets("id,name,status,campaign_id"),
+      getAds("id,name,status,adset_id,campaign_id"),
     ])
-      .then(([c, s]) => {
+      .then(([c, s, a]) => {
         if (!mounted) return
         const cList: CampaignRow[] = (c?.data || []).map((x: any) => ({ id: x.id, name: x.name, status: x.status }))
         const sList: AdSetRow[] = (s?.data || []).map((x: any) => ({ id: x.id, name: x.name, status: x.status, campaign_id: x.campaign_id }))
+        const aList: AdRow[] = (a?.data || []).map((x: any) => ({ id: x.id, name: x.name, status: x.status, campaign_id: x.campaign_id, adset_id: x.adset_id }))
         setCampaigns(cList)
         setAdsets(sList)
+        setAds(aList)
       })
       .catch((e) => {
         if (!mounted) return
@@ -73,6 +87,18 @@ export default function CampaignsAdSetsTable() {
     return map
   }, [campaigns, adsets])
 
+  const filteredAdSets = useMemo(() => {
+    if (!selectedCampaignId) return adsets
+    return adsets.filter((a) => a.campaign_id === selectedCampaignId)
+  }, [adsets, selectedCampaignId])
+
+  const filteredAds = useMemo(() => {
+    let list = ads
+    if (selectedCampaignId) list = list.filter((ad) => ad.campaign_id === selectedCampaignId)
+    if (selectedAdSetId) list = list.filter((ad) => ad.adset_id === selectedAdSetId)
+    return list
+  }, [ads, selectedCampaignId, selectedAdSetId])
+
   return (
     <Card className="p-0 border border-gray-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
@@ -90,6 +116,12 @@ export default function CampaignsAdSetsTable() {
           >
             Ad Sets
           </button>
+          <button
+            className={`px-3 py-1 rounded border ${view === "ads" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"}`}
+            onClick={() => setView("ads")}
+          >
+            Ads
+          </button>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -103,11 +135,19 @@ export default function CampaignsAdSetsTable() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-2" />
                 </>
-              ) : (
+              ) : view === "adsets" ? (
                 <>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Set</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Set ID</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad ID</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Set</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
                 </>
               )}
@@ -122,7 +162,9 @@ export default function CampaignsAdSetsTable() {
               <tr>
                 <td className="px-4 py-6 text-sm text-red-600" colSpan={6}>{error}</td>
               </tr>
-            ) : (view === "campaigns" ? campaigns.length === 0 : adsets.length === 0) ? (
+            ) : (
+              view === "campaigns" ? campaigns.length === 0 : view === "adsets" ? filteredAdSets.length === 0 : filteredAds.length === 0
+            ) ? (
               <tr>
                 <td className="px-4 py-6 text-sm text-gray-500" colSpan={6}>No data</td>
               </tr>
@@ -131,12 +173,16 @@ export default function CampaignsAdSetsTable() {
                 ? campaigns.map((c) => (
                     <tr key={c.id}>
                       <td className="px-4 py-2 text-sm">
-                        <Link
-                          href={`/create-ad-set?campaignId=${encodeURIComponent(c.id)}`}
+                        <button
+                          type="button"
                           className="text-blue-600 hover:underline cursor-pointer"
+                          onClick={() => {
+                            setSelectedCampaignId(c.id)
+                            setView("adsets")
+                          }}
                         >
                           {c.name}
-                        </Link>
+                        </button>
                       </td>
                       <td className="px-4 py-2 text-xs text-gray-500">{c.id}</td>
                       <td className="px-4 py-2 text-xs">
@@ -165,17 +211,23 @@ export default function CampaignsAdSetsTable() {
                       </td>
                     </tr>
                   ))
-                : adsets.map((a) => {
+                : view === "adsets"
+                ? filteredAdSets.map((a) => {
                     const camp = campaigns.find((c) => c.id === a.campaign_id)
                     return (
                       <tr key={a.id}>
                         <td className="px-4 py-2 text-sm">
-                          <Link
-                            href={`/create-creative?adSetId=${encodeURIComponent(a.id)}&campaignId=${encodeURIComponent(a.campaign_id)}`}
+                          <button
+                            type="button"
                             className="text-blue-600 hover:underline cursor-pointer"
+                            onClick={() => {
+                              setSelectedCampaignId(a.campaign_id)
+                              setSelectedAdSetId(a.id)
+                              setView("ads")
+                            }}
                           >
                             {a.name}
-                          </Link>
+                          </button>
                         </td>
                         <td className="px-4 py-2 text-xs text-gray-500">{a.id}</td>
                         <td className="px-4 py-2 text-xs">
@@ -200,6 +252,21 @@ export default function CampaignsAdSetsTable() {
                           </label>
                         </td>
                         <td className="px-4 py-2 text-xs text-gray-500">{camp?.name || a.campaign_id}</td>
+                      </tr>
+                    )
+                  })
+                : filteredAds.map((ad) => {
+                    const adset = adsets.find((s) => s.id === ad.adset_id)
+                    const camp = campaigns.find((c) => c.id === ad.campaign_id)
+                    return (
+                      <tr key={ad.id}>
+                        <td className="px-4 py-2 text-sm text-gray-900">{ad.name}</td>
+                        <td className="px-4 py-2 text-xs text-gray-500">{ad.id}</td>
+                        <td className="px-4 py-2 text-xs">
+                          <span className={ad.status === "ACTIVE" ? "text-green-600" : "text-gray-500"}>{ad.status}</span>
+                        </td>
+                        <td className="px-4 py-2 text-xs text-gray-500">{adset?.name || ad.adset_id}</td>
+                        <td className="px-4 py-2 text-xs text-gray-500">{camp?.name || ad.campaign_id}</td>
                       </tr>
                     )
                   })
