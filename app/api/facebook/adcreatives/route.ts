@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server"
 
 const API_VERSION = process.env.NEXT_PUBLIC_FB_API_VERSION || "v24.0"
-const ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN || process.env.NEXT_PUBLIC_FACEBOOK_ACCESS_TOKEN
-const AD_ACCOUNT_ID = process.env.FB_AD_ACCOUNT_ID || process.env.NEXT_PUBLIC_FB_AD_ACCOUNT_ID
-const PAGE_ID = process.env.FB_PAGE_ID || process.env.NEXT_PUBLIC_FB_PAGE_ID
+const DEFAULT_ACCESS_TOKEN = process.env.NEXT_PUBLIC_FACEBOOK_ACCESS_TOKEN
+const DEFAULT_AD_ACCOUNT_ID = process.env.NEXT_PUBLIC_FB_AD_ACCOUNT_ID
+const DEFAULT_PAGE_ID = process.env.NEXT_PUBLIC_FB_PAGE_ID
 
 export async function POST(req: NextRequest) {
   try {
+    const userToken = req.cookies.get('fb_user_token')?.value
+    const ACCESS_TOKEN = userToken || DEFAULT_ACCESS_TOKEN
+    const AD_ACCOUNT_ID = DEFAULT_AD_ACCOUNT_ID
+    const PAGE_ID = DEFAULT_PAGE_ID
+
     const payload = await req.json()
     const { name, pageId, link, message } = payload || {}
 

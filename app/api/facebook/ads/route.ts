@@ -1,11 +1,15 @@
 import { NextRequest } from "next/server"
 
 const API_VERSION = process.env.NEXT_PUBLIC_FB_API_VERSION || "v24.0"
-const ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN || process.env.NEXT_PUBLIC_FACEBOOK_ACCESS_TOKEN
-const AD_ACCOUNT_ID = process.env.FB_AD_ACCOUNT_ID || process.env.NEXT_PUBLIC_FB_AD_ACCOUNT_ID
+const DEFAULT_ACCESS_TOKEN = process.env.NEXT_PUBLIC_FACEBOOK_ACCESS_TOKEN
+const DEFAULT_AD_ACCOUNT_ID = process.env.NEXT_PUBLIC_FB_AD_ACCOUNT_ID
 
 export async function GET(req: NextRequest) {
   try {
+    const userToken = req.cookies.get('fb_user_token')?.value
+    const ACCESS_TOKEN = userToken || DEFAULT_ACCESS_TOKEN
+    const AD_ACCOUNT_ID = DEFAULT_AD_ACCOUNT_ID
+
     const { searchParams } = new URL(req.url)
     const fields = searchParams.get("fields") || "id,name,status,adset_id,campaign_id"
     const limit = searchParams.get("limit") || "50"
@@ -31,6 +35,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userToken = req.cookies.get('fb_user_token')?.value
+    const ACCESS_TOKEN = userToken || DEFAULT_ACCESS_TOKEN
+    const AD_ACCOUNT_ID = DEFAULT_AD_ACCOUNT_ID
+    
     const payload = await req.json()
     const { name, adset_id, creative, status } = payload || {}
     if (!adset_id || !creative?.creative_id) {

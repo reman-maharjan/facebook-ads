@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ChevronRight, Zap, Settings, Plus } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card } from "@/src/components/ui/card"
+import { fb } from "@/src/utils/facebookConnect"
 import { getAdAccounts } from "@/src/utils/facebookAds"
 import CampaignsAdSetsTable from "@/src/components/ads/CampaignsAdSetsTable"
 
@@ -35,6 +36,8 @@ export default function FacebookAdsManager() {
   const [loading, setLoading] = useState(false)
   const [logCounter, setLogCounter] = useState(2)
 
+  const [connecting, setConnecting] = useState(false)
+
   const addLog = (message: string, type: "success" | "error" | "info" = "info") => {
     const newLog: LogEntry = {
       id: logCounter,
@@ -50,6 +53,29 @@ export default function FacebookAdsManager() {
 
   const handleCreateCampaign = () => {
     addLog("Navigating to campaign creation...", "info")
+  }
+
+  const handleConnectFacebook = () => {
+    setConnecting(true)
+    addLog("Redirecting to Facebook for permissions...", "info")
+    const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || process.env.NEXT_PUBLIC_FB_APP_ID
+    const version = process.env.NEXT_PUBLIC_FB_API_VERSION || "v24.0"
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const redirectUri = `${origin}/api/facebook/callback`
+    const state = Math.random().toString(36).slice(2)
+    const scope = [
+      'pages_show_list',
+      'pages_read_engagement',
+      'pages_manage_metadata',
+      'pages_manage_ads',
+      'ads_read',
+      'ads_management',
+      'business_management',
+    ].join(',')
+
+    const authUrl = `https://www.facebook.com/${version}/dialog/oauth?client_id=${encodeURIComponent(String(appId))}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&response_type=code&scope=${encodeURIComponent(scope)}`
+
+    window.location.href = authUrl
   }
 
   const navItems = [
@@ -89,6 +115,11 @@ export default function FacebookAdsManager() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Ads Manager</h1>
               <p className="text-sm text-gray-500 mt-1">Manage your advertising campaigns</p>
+            </div>
+            <div>
+              <Button size="sm" onClick={handleConnectFacebook} disabled={connecting}>
+                {connecting ? "Connecting..." : "Connect Facebook"}
+              </Button>
             </div>
           </div>
         </div>
