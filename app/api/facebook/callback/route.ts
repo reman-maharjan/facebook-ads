@@ -45,12 +45,14 @@ export async function GET(req: NextRequest) {
 
     // Set HttpOnly cookie with user access token
     const response = NextResponse.redirect(`${origin}/facebookads?connected=1`)
+    console.log(response.cookies)
+    console.log('accessToken:', accessToken)
     response.cookies.set('fb_user_token', accessToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
       path: '/',
-      maxAge: expiresIn || 60 * 60 * 2, // default 2h if missing
+      maxAge: expiresIn || 60 * 60 * 2, 
     })
 
     return response
